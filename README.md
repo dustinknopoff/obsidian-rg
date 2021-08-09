@@ -6,7 +6,7 @@ Please follow [their installation](https://github.com/BurntSushi/ripgrep#install
 
 In a shell, type `which rg` and copy the result into the settings for Obsidian Ripgrep.
 
-
+![](example.gif)
 
 This is a sample plugin for Obsidian (https://obsidian.md).
 
