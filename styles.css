@@ -1,4 +1,3 @@
-/* Sets all the text color to red! */
-body {
-    color: red;
+.prompts-results > h4,.prompts-results > p {
+    margin: 0;
 }
