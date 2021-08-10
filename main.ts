@@ -30,11 +30,8 @@ type RgResult = {
 
 export default class ObsidianRg extends Plugin {
 	settings: ObsidianRgSettings;
-	exec_promise: Function;
 
 	async onload() {
-
-		this.exec_promise = promisify(exec);
 
 		await this.loadSettings();
 		this.addCommand({
@@ -63,10 +60,7 @@ export default class ObsidianRg extends Plugin {
 		
 	}
 
-	async search(query: string): Promise<RgResult> {
-		const {stdout} = await this.exec_promise(`${this.settings.rgLocation} "${query}" "${this.app.vault.adapter.basePath}" --json`);
-		return stdout.trimRight().split("\n").map(JSON.parse).filter((res: {type: string}) => res.type === "match")
-	}
+
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -100,33 +94,67 @@ function debounce(func: Function, wait: number, immediate: boolean) {
 
 class ObsidianRgModal extends Modal {
 	plugin: ObsidianRg;
+	queued: boolean;
+	results: RgResult;
+	exec: Promise<RgResult> | null;
+	exec_promise: Function;
+	signal: AbortSignal
+	controller: AbortController
+
+
 	constructor(app: App, plugin: ObsidianRg) {
 		super(app);
+		this.exec_promise = promisify(exec);
 		this.plugin = plugin
+		this.results = [];
+		this.exec = null;
+		this.controller = new AbortController();
+		const { signal } = this.controller;
+		this.signal = signal;
+	}
+
+	async childCall(query: string): Promise<RgResult> {
+		const {stdout} = await this.exec_promise(`${this.plugin.settings.rgLocation} "${query}" "${this.app.vault.adapter.basePath}" --json`, {signal: this.signal});
+		return stdout.trimRight().split("\n").map(JSON.parse).filter((res: {type: string}) => res.type === "match")
+	}
+
+	updateNode(parentElem: HTMLElement, div: HTMLElement) {
+		const resultContainer = Array.from(parentElem.children).find(elem => elem.classList.contains("prompt-results"))
+			if (resultContainer) {
+				parentElem.replaceChild(div, resultContainer)
+			} else {
+				parentElem.appendChild(div)
+			}
 	}
 
 	async search(e: KeyboardEvent, parentElem: HTMLElement) {
+		console.log(this.exec)
+		if (this.exec) {
+			this.controller.abort()
+		}
 		const div = document.createElement('div')
 		div.addClass("prompt-results")
-		try {
-			const results = await this.plugin.search((e.target as HTMLInputElement).value)
-			if (results.length === 0) {
+		this.updateUI(() => {
+			this.exec = this.childCall((e.target as HTMLInputElement).value)
+			this.exec.then(results => {
+				if (results.length === 0) {
+					const errorMsg = document.createElement("div")
+					errorMsg.innerText = "Sorry, no results found"
+					div.appendChild(errorMsg)
+				}
+				this.resultAsHTML(results).forEach((elem) =>div.appendChild(elem))
+				this.updateNode(parentElem,div)
+				this.exec = null;
+			})
+			.catch(() => {
 				const errorMsg = document.createElement("div")
 				errorMsg.innerText = "Sorry, no results found"
 				div.appendChild(errorMsg)
-			}
-			this.resultAsHTML(results).forEach((elem) =>div.appendChild(elem))
-		} catch (e) {
-			const errorMsg = document.createElement("div")
-			errorMsg.innerText = "Sorry, no results found"
-			div.appendChild(errorMsg)
-		}
-		const resultContainer = Array.from(parentElem.children).find(elem => elem.classList.contains("prompt-results"))
-		if (resultContainer) {
-			parentElem.replaceChild(div, resultContainer)
-		} else {
-			parentElem.appendChild(div)
-		}
+				this.updateNode(parentElem,div)
+				this.exec = null;
+			})
+		})
+		
 	}
 
 	resultAsHTML(rgResult: RgResult): HTMLElement[]{
@@ -151,7 +179,20 @@ class ObsidianRgModal extends Modal {
 		})
 	}
 
+	updateUI(callback: Function) {
+		if (!this.queued) {
+			this.queued = true;
+			requestIdleCallback(() => {
+				callback()
+				this.queued = false;
+			})
+		}
+	}
+
 	onOpen() {
+		this.queued = false
+		this.results = []
+		this.exec = null;
 		let {contentEl} = this;
 		const wrapper = document.createElement("div")
 		wrapper.addClass("prompt")
@@ -166,6 +207,12 @@ class ObsidianRgModal extends Modal {
 
 	onClose() {
 		let {contentEl} = this;
+		this.queued = false;
+		this.results = []
+		if (this.exec) {
+			this.controller.abort()
+		}
+		this.exec = null;
 		contentEl.empty();
 	}
 }

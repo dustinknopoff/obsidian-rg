@@ -71,6 +71,11 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-14.17.9.tgz#b97c057e6138adb7b720df2bd0264b03c9f504fd"
   integrity sha512-CMjgRNsks27IDwI785YMY0KLt3co/c0cQ5foxHYv/shC2w8oOnVwz5Ubq1QG5KzrcW+AXk6gzdnxIkDnTvzu3g==
 
+"@types/requestidlecallback@^0.3.4":
+  version "0.3.4"
+  resolved "https://registry.yarnpkg.com/@types/requestidlecallback/-/requestidlecallback-0.3.4.tgz#819e22b8994cf547e1f17f9cb79805a5a3bb1db5"
+  integrity sha512-aTSyiZuRemRLTQkJPb25L7A4/eR2Teo5l4yJ1V6P3+MFxEZckTDkNKNtr/V1zEOMzS6H8DgxF22U6jPAPrzQvw==
+
 "@types/resolve@1.17.1":
   version "1.17.1"
   resolved "https://registry.yarnpkg.com/@types/resolve/-/resolve-1.17.1.tgz#3afd6ad8967c77e4376c598a82ddd58f46ec45d6"
