@@ -114,6 +114,7 @@ class ObsidianRgModal extends Modal {
 	}
 
 	async childCall(query: string): Promise<RgResult> {
+		//@ts-ignore
 		const {stdout} = await this.exec_promise(`${this.plugin.settings.rgLocation} "${query}" "${this.app.vault.adapter.basePath}" --json`, {signal: this.signal});
 		return stdout.trimRight().split("\n").map(JSON.parse).filter((res: {type: string}) => res.type === "match")
 	}
@@ -159,13 +160,15 @@ class ObsidianRgModal extends Modal {
 
 	resultAsHTML(rgResult: RgResult): HTMLElement[]{
 		return rgResult.map(({data})=> {
+			// @ts-ignore
 			const path = data.path.text.replace(this.app.vault.adapter.basePath + "/", "")
 			let text = data.lines.text
 			data.submatches.forEach(({match}) => {
 				text = text.replaceAll(match.text,`<mark>${match.text}</mark>`)
 			})
-			const open = () => {
-				this.app.workspace.openLinkText(path,path)
+			const open = (e: MouseEvent) => {
+				const newLeaf = e.metaKey || e.ctrlKey
+				this.app.workspace.openLinkText(path,path, newLeaf)
 				this.close()
 			}
 			const link = document.createElement("div")
@@ -230,16 +233,15 @@ class RgSettingsTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Settings for my awesome plugin.'});
+		containerEl.createEl('h2', {text: 'Obsidian Ripgrep'});
 
 		new Setting(containerEl)
 			.setName('ripgrep location')
-			.setDesc("Execute which rg in your shell to see where it's located")
+			.setDesc("Execute `which rg` in your shell to see where it's located")
 			.addText(text => text
 				.setPlaceholder('/usr/local/bin/rg')
 				.setValue('/usr/local/bin/rg')
 				.onChange(async (value) => {
-					console.log('Secret: ' + value);
 					this.plugin.settings.rgLocation = value;
 					await this.plugin.saveSettings();
 				}));
